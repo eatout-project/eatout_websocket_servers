@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import * as WebSocket from 'ws';
 import {Kafka} from "kafkajs";
 import {v4 as uuidv4} from 'uuid';
-import {CustomerMessage, ReservationStatus} from "./interfaces/interfaces";
+import {CustomerMessage} from "./interfaces/interfaces";
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ const wss = new WebSocket.Server({ server });
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: ['127.0.0.1:9092']
+    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
 })
 
 wss.on('connection', (ws: WebSocket) => {
@@ -32,6 +32,7 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('pong', () => {
         ws.isAlive = true;
     });
+
     ws.on('message', (wsMessage: string) => {
         console.log('wsMessage: ', JSON.parse(wsMessage));
         const messageFromCustomer: CustomerMessage = JSON.parse(wsMessage);
@@ -41,18 +42,15 @@ wss.on('connection', (ws: WebSocket) => {
                 consumer.subscribe({topic: `${messageFromCustomer.customerId}`, fromBeginning: true})
                     .then(something => {
                         console.log('made it so far');
+                        let counter = 0;
                         consumer.run({
                             eachMessage: ({ topic, partition, message }) => {
-                                console.log('message: ', message)
+                                // @ts-ignore
+                                console.log(`message: ${{counter}}`, JSON.parse(message.value.toString()));
+                                counter++;
                                 return new Promise(() => {
-                                    if (!!message) {
-                                        // @ts-ignore
-                                        const statusUpdate: ReservationStatus = JSON.parse(message.value.toString())
-                                    }
                                     // @ts-ignore
-                                    console.log('kafkaMessage', JSON.parse(statusUpdate));
-                                    // @ts-ignore
-                                    ws.send(statusUpdate || 'nothing');
+                                    ws.send(message.value.toString());
                                 })
                             }
                         })

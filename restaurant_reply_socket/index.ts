@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import * as WebSocket from 'ws';
 import {Kafka} from "kafkajs";
 import {v4 as uuidv4} from 'uuid';
-import {ReservationInfoApiObject} from "./interfaces/interfaces";
+import {ReservationWithId} from "./interfaces/interfaces";
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ const wss = new WebSocket.Server({ server });
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: ['127.0.0.1:9092']
+    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
 })
 
 wss.on('connection', (ws: WebSocket) => {
@@ -34,7 +34,7 @@ wss.on('connection', (ws: WebSocket) => {
     });
     ws.on('message', (wsMessage: string) => {
         console.log('wsMessage: ', JSON.parse(wsMessage));
-        const messageFromRestaurant: ReservationInfoApiObject = JSON.parse(wsMessage);
+        const messageFromRestaurant: ReservationWithId = JSON.parse(wsMessage);
         const producer = kafka.producer();
         producer.connect()
             .then(something => {

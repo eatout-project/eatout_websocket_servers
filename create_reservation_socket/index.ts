@@ -22,7 +22,7 @@ const wss = new WebSocket.Server({ server }, {clientTracking: true});
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: ['127.0.0.1:9092']
+    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
 })
 
 
