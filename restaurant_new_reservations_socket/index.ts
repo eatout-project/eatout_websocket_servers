@@ -21,7 +21,7 @@ const wss = new WebSocket.Server({ server });
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
+    brokers: [process.env.KAFKA_HOST && process.env.KAFKA_PORT ? `${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}` : '127.0.0.1:9092']
 })
 
 
@@ -40,10 +40,9 @@ wss.on('connection', (ws: WebSocket) => {
         consumer.connect().then(something => {
             console.log('kafka consumer connected')
             console.log(JSON.parse(wsMessage).restaurantId)
-            consumer.subscribe({topic: `${JSON.parse(wsMessage).restaurantId}`, fromBeginning: true})
+            consumer.subscribe({topic: `${JSON.parse(wsMessage)}`})
                 .then(something => {
-                    console.log('testing something: ', something)
-                    console.log('kafka consumer subscribed to ' + JSON.parse(wsMessage).restaurantId);
+                    console.log('kafka consumer subscribed to ' + JSON.parse(wsMessage));
                     consumer.run({
                         eachMessage: ({ topic, partition, message }) => {
                             // @ts-ignore
@@ -68,9 +67,6 @@ wss.on('connection', (ws: WebSocket) => {
         console.log('closing socket');
         ws.close();
     })
-
-    //send immediatly a feedback to the incoming connection
-    ws.send('Hi there, I am a WebSocket server');
 })
 
 setInterval(() => {

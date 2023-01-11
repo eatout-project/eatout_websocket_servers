@@ -8,3 +8,13 @@ export enum ReservationStatus{
     DECLINED = "declined"
 }
 
+export interface MessageApiObject {
+    id: number,
+    customerName: string,
+    customerId: number,
+    restaurantId: number,
+    restaurantName: string,
+    timeOfArrival: string,
+    amountOfGuests: number,
+    status: string
+}

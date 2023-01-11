@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import * as WebSocket from 'ws';
 import {Kafka} from "kafkajs";
 import {v4 as uuidv4} from 'uuid';
-import {CustomerMessage} from "./interfaces/interfaces";
+import {CustomerMessage, MessageApiObject} from "./interfaces/interfaces";
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ const wss = new WebSocket.Server({ server });
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
+    brokers: [process.env.KAFKA_HOST && process.env.KAFKA_PORT ? `${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}` : '127.0.0.1:9092']
 })
 
 wss.on('connection', (ws: WebSocket) => {
@@ -39,20 +39,27 @@ wss.on('connection', (ws: WebSocket) => {
         const consumer = kafka.consumer({ groupId: 'test3-group' });
         consumer.connect()
             .then(something => {
-                consumer.subscribe({topic: `${messageFromCustomer.customerId}`, fromBeginning: true})
+                consumer.subscribe({topic: `${JSON.parse(wsMessage)}`})
                     .then(something => {
                         console.log('made it so far');
                         let counter = 0;
                         consumer.run({
+                            partitionsConsumedConcurrently: 3,
                             eachMessage: ({ topic, partition, message }) => {
-                                // @ts-ignore
-                                console.log(`message: ${{counter}}`, JSON.parse(message.value.toString()));
-                                counter++;
                                 return new Promise(() => {
                                     // @ts-ignore
-                                    ws.send(message.value.toString());
+                                    const jsonMessage: MessageApiObject = JSON.parse(message.value.toString());
+                                    console.log(`message ${{counter}}:`, jsonMessage);
+                                    counter++;
+                                    // @ts-ignore
+                                    ws.send(JSON.stringify(jsonMessage));
                                 })
                             }
+                        })
+                            .then(something => {
+                                console.log('in the matrix: ', something);
+                            }).catch(error => {
+                            console.log(error);
                         })
                     })
             })
@@ -62,9 +69,6 @@ wss.on('connection', (ws: WebSocket) => {
         console.log(error);
     })
 
-    //send immediately a feedback to the incoming connection
-    ws.send('Hi there, I am a WebSocket server');
-    console.log(wss.clients)
 })
 
 setInterval(() => {

@@ -5,7 +5,7 @@ import cors from 'cors';
 import bodyParser from "body-parser";
 // @ts-ignore
 import * as WebSocket from 'ws';
-import {Kafka} from "kafkajs";
+import {Kafka, Partitioners} from "kafkajs";
 import {v4 as uuidv4} from 'uuid';
 import {ReservationWithId} from "./interfaces/interfaces";
 
@@ -22,7 +22,7 @@ const wss = new WebSocket.Server({ server });
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
+    brokers: [process.env.KAFKA_HOST && process.env.KAFKA_PORT ? `${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}` : '127.0.0.1:9092']
 })
 
 wss.on('connection', (ws: WebSocket) => {
@@ -35,7 +35,9 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('message', (wsMessage: string) => {
         console.log('wsMessage: ', JSON.parse(wsMessage));
         const messageFromRestaurant: ReservationWithId = JSON.parse(wsMessage);
-        const producer = kafka.producer();
+        const producer = kafka.producer({
+            createPartitioner: Partitioners.LegacyPartitioner
+        });
         producer.connect()
             .then(something => {
                 producer.send({
@@ -43,6 +45,10 @@ wss.on('connection', (ws: WebSocket) => {
                     messages: [
                         { value: JSON.stringify(messageFromRestaurant) },
                     ]
+                }).then(something => {
+                    console.log('send done: ', something)
+                }).catch(error => {
+                    console.log(error);
                 })
             })
             .catch(error => {
@@ -54,9 +60,6 @@ wss.on('connection', (ws: WebSocket) => {
         console.log(error);
     })
 
-    //send immediatly a feedback to the incoming connection
-    ws.send('Hi there, I am a WebSocket server');
-    console.log('we are here: ', wss.clients)
 })
 
 setInterval(() => {

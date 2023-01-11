@@ -22,7 +22,9 @@ const wss = new WebSocket.Server({ server }, {clientTracking: true});
 
 const kafka = new Kafka({
     clientId: uuidv4(),
-    brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`]
+    brokers: [
+        process.env.KAFKA_HOST && process.env.KAFKA_PORT ? `${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}` : '127.0.0.1:9092'
+    ]
 })
 
 
@@ -55,9 +57,6 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('error', (error: any) => {
         console.log(error);
     })
-
-    //send immediatly a feedback to the incoming connection
-    ws.send('Hi there, I am a WebSocket server');
 });
 
 setInterval(() => {
