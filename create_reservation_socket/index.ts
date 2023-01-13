@@ -31,6 +31,7 @@ const kafka = new Kafka({
 wss.on('connection', (ws: WebSocket) => {
     console.log('sup');
     ws.isAlive = true;
+    const producer = kafka.producer({createPartitioner: Partitioners.LegacyPartitioner});
 
     ws.on('pong', () => {
         ws.isAlive = true;
@@ -39,7 +40,7 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('message', (message: string) => {
         const reservationInfoApiObject: ReservationInfoApiObject = JSON.parse(message);
         console.log('reservationInfoApiObject: ', reservationInfoApiObject);
-        const producer = kafka.producer({createPartitioner: Partitioners.LegacyPartitioner});
+
         producer.connect()
             .then(something => {
                 producer.send({

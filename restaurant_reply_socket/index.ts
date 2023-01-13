@@ -26,18 +26,19 @@ const kafka = new Kafka({
 })
 
 wss.on('connection', (ws: WebSocket) => {
+    const producer = kafka.producer({
+        createPartitioner: Partitioners.LegacyPartitioner
+    });
     console.log('connected');
     ws.isAlive = true;
 
     ws.on('pong', () => {
         ws.isAlive = true;
     });
+
     ws.on('message', (wsMessage: string) => {
         console.log('wsMessage: ', JSON.parse(wsMessage));
         const messageFromRestaurant: ReservationWithId = JSON.parse(wsMessage);
-        const producer = kafka.producer({
-            createPartitioner: Partitioners.LegacyPartitioner
-        });
         producer.connect()
             .then(something => {
                 producer.send({
@@ -47,12 +48,14 @@ wss.on('connection', (ws: WebSocket) => {
                     ]
                 }).then(something => {
                     console.log('send done: ', something)
+                    producer.disconnect();
                 }).catch(error => {
                     console.log(error);
                 })
             })
             .catch(error => {
                 console.log(error);
+                producer.disconnect();
             })
     })
 

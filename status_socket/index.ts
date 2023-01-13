@@ -7,7 +7,7 @@ import bodyParser from "body-parser";
 import * as WebSocket from 'ws';
 import {Kafka} from "kafkajs";
 import {v4 as uuidv4} from 'uuid';
-import {CustomerMessage, MessageApiObject} from "./interfaces/interfaces";
+import {MessageApiObject} from "./interfaces/interfaces";
 
 dotenv.config();
 
@@ -26,6 +26,7 @@ const kafka = new Kafka({
 })
 
 wss.on('connection', (ws: WebSocket) => {
+    const consumer = kafka.consumer({ groupId: uuidv4() });
     console.log('connected');
     ws.isAlive = true;
 
@@ -35,25 +36,21 @@ wss.on('connection', (ws: WebSocket) => {
 
     ws.on('message', (wsMessage: string) => {
         console.log('wsMessage: ', JSON.parse(wsMessage));
-        const messageFromCustomer: CustomerMessage = JSON.parse(wsMessage);
-        const consumer = kafka.consumer({ groupId: 'test3-group' });
         consumer.connect()
             .then(something => {
-                consumer.subscribe({topic: `${JSON.parse(wsMessage)}`})
+                consumer.subscribe({topic: `${JSON.parse(wsMessage)}`, fromBeginning: true})
                     .then(something => {
-                        console.log('made it so far');
-                        let counter = 0;
+                        console.log(`subscribed to ${JSON.parse(wsMessage)}`)
                         consumer.run({
                             partitionsConsumedConcurrently: 3,
                             eachMessage: ({ topic, partition, message }) => {
-                                return new Promise(() => {
-                                    // @ts-ignore
+                                if (message.value) {
                                     const jsonMessage: MessageApiObject = JSON.parse(message.value.toString());
-                                    console.log(`message ${{counter}}:`, jsonMessage);
-                                    counter++;
-                                    // @ts-ignore
-                                    ws.send(JSON.stringify(jsonMessage));
-                                })
+                                    console.log(`kafka message:`, jsonMessage);
+                                    ws.send(message.value.toString());
+                                    console.log('websocket message sent')
+                                }
+                                return Promise.resolve().then(() => {});
                             }
                         })
                             .then(something => {

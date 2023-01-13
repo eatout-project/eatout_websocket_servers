@@ -19,6 +19,8 @@ const server = http.createServer(app);
 
 const wss = new WebSocket.Server({ server });
 
+console.log('KAFKA_HOST: ' + process.env.KAFKA_HOST + ' KAFKA_PORT: ' + process.env.KAFKA_PORT);
+
 const kafka = new Kafka({
     clientId: uuidv4(),
     brokers: [process.env.KAFKA_HOST && process.env.KAFKA_PORT ? `${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}` : '127.0.0.1:9092']
@@ -26,33 +28,32 @@ const kafka = new Kafka({
 
 
 wss.on('connection', (ws: WebSocket) => {
+    const consumer = kafka.consumer({ groupId: uuidv4()});
     ws.isAlive = true;
 
     ws.on('pong', () => {
         ws.isAlive = true;
     });
-    console.log('hello there')
 
 
     ws.on('message', (wsMessage: string) => {
         console.log('wsMessage: ', JSON.parse(wsMessage));
-        const consumer = kafka.consumer({ groupId: uuidv4()});
         consumer.connect().then(something => {
             console.log('kafka consumer connected')
-            console.log(JSON.parse(wsMessage).restaurantId)
-            consumer.subscribe({topic: `${JSON.parse(wsMessage)}`})
+            consumer.subscribe({topic: `${JSON.parse(wsMessage)}`, fromBeginning: true})
                 .then(something => {
                     console.log('kafka consumer subscribed to ' + JSON.parse(wsMessage));
                     consumer.run({
                         eachMessage: ({ topic, partition, message }) => {
-                            // @ts-ignore
-                            console.log('kafkaMessage', JSON.parse(message.value.toString()));
-
-                            // @ts-ignore
-                            return ws.send(message.value.toString() || 'nothing', () => {
-                                return Promise.resolve();
-                            })
+                            if (message.value) {
+                                console.log('kafkaMessage', JSON.parse(message.value.toString()));
+                                ws.send(message.value.toString() || '');
+                                return Promise.resolve().then(() => {});
+                            }
+                            return Promise.resolve().then(() => {});
                         }
+                    }).then(something => {
+                        console.log('moved on')
                     })
                 })
         })
