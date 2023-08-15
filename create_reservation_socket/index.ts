@@ -27,9 +27,7 @@ const kafka = new Kafka({
     ]
 })
 
-
 wss.on('connection', (ws: WebSocket) => {
-    console.log('sup');
     ws.isAlive = true;
     const producer = kafka.producer({createPartitioner: Partitioners.LegacyPartitioner});
 
